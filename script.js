@@ -56,7 +56,7 @@ class WebSocketClient {
     this.saveApiKey();
 
     // Anpassa denna URL till din WebSocket-server
-    const serverUrl = "http://localhost:3000"; // Ändra till din servers URL
+    const serverUrl = "http://localhost:3005"; // Ändra till din servers URL
 
     try {
       // Socket.IO med JWT i header
@@ -112,7 +112,8 @@ class WebSocketClient {
 
     // Lyssna på meddelanden från servern
     this.socket.on("message", (data) => {
-      this.addMessage("other", data);
+      // Visa bara texten utan användarnamn (paste board stil)
+      this.addMessage("other", data.text);
     });
 
     // Alternativt event-namn som servern kan använda
@@ -132,11 +133,11 @@ class WebSocketClient {
       return;
     }
 
-    // Skicka meddelande till servern
-    this.socket.emit("message", message);
+    // Skicka meddelande till servern (anpassat för server-format)
+    this.socket.emit("message", { text: message });
 
-    // Visa meddelandet i chatten som "eget"
-    this.addMessage("own", message);
+    // Ta bort lokal visning - låt servern broadcasta tillbaka till alla (inklusive avsändaren)
+    // this.addMessage("own", message); // Kommenterad bort
 
     // Rensa input-fältet
     this.messageInput.value = "";
@@ -158,14 +159,49 @@ class WebSocketClient {
       messageDiv.style.margin = "0 auto";
       messageDiv.style.textAlign = "center";
     } else {
+      // Paste board stil - alla meddelanden ser likadana ut
       messageDiv.innerHTML = `
         <div>${content}</div>
         <div class="timestamp">${timestamp}</div>
       `;
+      // Ta bort distinktionen mellan egna och andras meddelanden
+      messageDiv.className = "message shared";
+
+      // Lägg till copy-knapp för varje meddelande
+      const copyBtn = document.createElement("button");
+      copyBtn.textContent = "Kopiera";
+      copyBtn.className = "copy-btn";
+      copyBtn.onclick = () => this.copyToClipboard(content);
+      messageDiv.appendChild(copyBtn);
     }
 
     this.chatContainer.appendChild(messageDiv);
     this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+  }
+
+  copyToClipboard(text) {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        // Visa kort bekräftelse
+        const notification = document.createElement("div");
+        notification.textContent = "Kopierat!";
+        notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #28a745;
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        z-index: 1000;
+      `;
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 1500);
+      })
+      .catch(() => {
+        alert("Kunde inte kopiera till urklipp");
+      });
   }
 
   updateStatus(text, statusClass) {

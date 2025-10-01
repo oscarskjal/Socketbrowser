@@ -3,13 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WebSocket Chat Client</title>
+    <title>Delad Urklipp - Paste Board</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="container">
       <div class="header">
-        <h1>WebSocket Chat</h1>
+        <h1>Delad Urklipp</h1>
+        <p>Dela text mellan olika enheter och användare</p>
       </div>
 
       <div class="auth-section">
@@ -25,17 +26,17 @@
       <div id="status" class="status disconnected">Inte ansluten</div>
 
       <div id="chatContainer" class="chat-container">
-        <!-- Meddelanden visas här -->
+        <!-- Delade texter visas här -->
       </div>
 
       <div class="input-section">
         <input
           type="text"
           id="messageInput"
-          placeholder="Skriv ditt meddelande..."
+          placeholder="Skriv eller klistra in text att dela..."
           disabled
         />
-        <button id="sendBtn" disabled>Skicka</button>
+        <button id="sendBtn" disabled>Dela</button>
       </div>
     </div>
 

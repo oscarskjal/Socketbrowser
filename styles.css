@@ -81,6 +81,15 @@ body {
   max-width: 80%;
 }
 
+.message.shared {
+  background: #f8f9fa;
+  color: #333;
+  border: 1px solid #dee2e6;
+  max-width: 100%;
+  position: relative;
+  margin: 0 0 15px 0;
+}
+
 .message.own {
   background: #007bff;
   color: white;
@@ -134,4 +143,28 @@ body {
 
 .hidden {
   display: none;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 3px;
+  font-size: 0.8em;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.copy-btn:hover {
+  opacity: 1;
+  background: #5a6268;
+}
+
+.message.shared:hover .copy-btn {
+  opacity: 1;
 }
