@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebSocket Chat Client</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>WebSocket Chat</h1>
+      </div>
+
+      <div class="auth-section">
+        <input
+          type="text"
+          id="apiKeyInput"
+          placeholder="Ange din API-nyckel (JWT token)"
+        />
+        <button id="connectBtn">Anslut</button>
+        <button id="disconnectBtn" class="hidden">Koppla från</button>
+      </div>
+
+      <div id="status" class="status disconnected">Inte ansluten</div>
+
+      <div id="chatContainer" class="chat-container">
+        <!-- Meddelanden visas här -->
+      </div>
+
+      <div class="input-section">
+        <input
+          type="text"
+          id="messageInput"
+          placeholder="Skriv ditt meddelande..."
+          disabled
+        />
+        <button id="sendBtn" disabled>Skicka</button>
+      </div>
+    </div>
+
+    <!-- Socket.IO Client Library -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
