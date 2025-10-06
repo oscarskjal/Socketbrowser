@@ -13,7 +13,16 @@
         <p>Dela text mellan olika enheter och användare</p>
       </div>
 
-      <div class="auth-section">
+      <!-- LOGIN-FORMULÄR (visas när utloggad) -->
+      <div id="loginSection" class="login-section">
+        <h3>Logga in</h3>
+        <input type="text" id="usernameInput" placeholder="Användarnamn" />
+        <input type="password" id="passwordInput" placeholder="Lösenord" />
+        <button id="loginBtn">Logga in</button>
+      </div>
+
+      <!-- AUTH-SECTION (visas när inloggad) -->
+      <div id="authSection" class="auth-section hidden">
         <input
           type="text"
           id="apiKeyInput"
@@ -21,6 +30,7 @@
         />
         <button id="connectBtn">Anslut</button>
         <button id="disconnectBtn" class="hidden">Koppla från</button>
+        <button id="logoutBtn" class="hidden">Logga ut</button>
       </div>
 
       <div id="status" class="status disconnected">Inte ansluten</div>

@@ -2,16 +2,30 @@ class WebSocketClient {
   constructor() {
     this.socket = null;
     this.isConnected = false;
-    this.apiKey = localStorage.getItem("websocket_api_key") || "";
+    this.accessToken = localStorage.getItem("access_token") || "";
+    this.refreshToken = localStorage.getItem("refresh_token") || "";
+    this.loginApiUrl = "http://localhost:3000"; // Din login API URL
+    this.refreshTimer = null;
     this.initializeElements();
     this.bindEvents();
-    this.loadSavedApiKey();
+    this.loadSavedTokens();
   }
 
   initializeElements() {
+    // Login-formulär elements
+    this.loginSection = document.getElementById("loginSection");
+    this.authSection = document.getElementById("authSection");
+    this.usernameInput = document.getElementById("usernameInput");
+    this.passwordInput = document.getElementById("passwordInput");
+    this.loginBtn = document.getElementById("loginBtn");
+
+    // Auth-section elements
     this.apiKeyInput = document.getElementById("apiKeyInput");
     this.connectBtn = document.getElementById("connectBtn");
     this.disconnectBtn = document.getElementById("disconnectBtn");
+    this.logoutBtn = document.getElementById("logoutBtn");
+
+    // App elements
     this.status = document.getElementById("status");
     this.chatContainer = document.getElementById("chatContainer");
     this.messageInput = document.getElementById("messageInput");
@@ -19,59 +33,215 @@ class WebSocketClient {
   }
 
   bindEvents() {
+    // Login events
+    this.loginBtn.addEventListener("click", () => this.login());
+    this.passwordInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        this.login();
+      }
+    });
+
+    // Auth events
     this.connectBtn.addEventListener("click", () => this.connect());
     this.disconnectBtn.addEventListener("click", () => this.disconnect());
-    this.sendBtn.addEventListener("click", () => this.sendMessage());
+    this.logoutBtn.addEventListener("click", () => this.logout());
 
+    // Message events
+    this.sendBtn.addEventListener("click", () => this.sendMessage());
     this.messageInput.addEventListener("keypress", (e) => {
       if (e.key === "Enter") {
         this.sendMessage();
       }
     });
 
+    // Token input event
     this.apiKeyInput.addEventListener("input", () => {
-      this.saveApiKey();
+      this.accessToken = this.apiKeyInput.value.trim();
+      if (this.accessToken) {
+        localStorage.setItem("access_token", this.accessToken);
+      }
     });
   }
 
-  loadSavedApiKey() {
-    if (this.apiKey) {
-      this.apiKeyInput.value = this.apiKey;
+  loadSavedTokens() {
+    if (this.accessToken && this.refreshToken) {
+      // Har tokens - visa auth section
+      this.apiKeyInput.value = this.accessToken;
+      this.showAuthSection();
+      this.tryAutoConnect();
+    } else {
+      // Inga tokens - visa login section
+      this.showLoginSection();
     }
   }
 
-  saveApiKey() {
-    this.apiKey = this.apiKeyInput.value.trim();
-    localStorage.setItem("websocket_api_key", this.apiKey);
+  showLoginSection() {
+    this.loginSection.classList.remove("hidden");
+    this.authSection.classList.add("hidden");
+  }
+
+  showAuthSection() {
+    this.loginSection.classList.add("hidden");
+    this.authSection.classList.remove("hidden");
+  }
+
+  async login() {
+    const username = this.usernameInput.value.trim();
+    const password = this.passwordInput.value.trim();
+
+    if (!username || !password) {
+      alert("Ange både användarnamn och lösenord");
+      return;
+    }
+
+    // Visa loading state
+    this.loginBtn.disabled = true;
+    this.loginBtn.textContent = "Loggar in...";
+
+    try {
+      const response = await fetch(`${this.loginApiUrl}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Spara tokens
+        this.saveTokens(data.accessToken, data.refreshToken);
+
+        // Visa auth-section
+        this.showAuthSection();
+
+        // Auto-anslut till WebSocket
+        this.connect();
+
+        // Rensa login-formulär
+        this.usernameInput.value = "";
+        this.passwordInput.value = "";
+
+        this.addMessage("system", `Välkommen ${data.user.username}!`);
+      } else {
+        alert(`Inloggning misslyckades: ${data.message}`);
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      alert("Inloggningsfel. Kontrollera din internetanslutning.");
+    } finally {
+      // Återställ knapp
+      this.loginBtn.disabled = false;
+      this.loginBtn.textContent = "Logga in";
+    }
+  }
+
+  saveTokens(accessToken, refreshToken) {
+    this.accessToken = accessToken;
+    this.refreshToken = refreshToken;
+    localStorage.setItem("access_token", accessToken);
+    localStorage.setItem("refresh_token", refreshToken);
+    this.apiKeyInput.value = accessToken;
+  }
+
+  clearTokens() {
+    this.accessToken = "";
+    this.refreshToken = "";
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    this.apiKeyInput.value = "";
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+  }
+
+  async tryAutoConnect() {
+    const refreshed = await this.refreshAccessToken();
+    if (refreshed) {
+      this.connect();
+    } else {
+      // Om refresh misslyckas, visa login igen
+      this.showLoginSection();
+    }
+  }
+
+  async refreshAccessToken() {
+    if (!this.refreshToken) {
+      return false;
+    }
+
+    try {
+      const response = await fetch(`${this.loginApiUrl}/api/auth/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          refreshToken: this.refreshToken,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        this.saveTokens(data.accessToken, this.refreshToken);
+        this.scheduleTokenRefresh();
+        return true;
+      } else {
+        this.clearTokens();
+        this.addMessage("system", "Session utgången. Vänligen logga in igen.");
+        this.showLoginSection();
+        return false;
+      }
+    } catch (error) {
+      console.error("Token refresh error:", error);
+      this.clearTokens();
+      this.showLoginSection();
+      return false;
+    }
+  }
+
+  scheduleTokenRefresh() {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+    }
+
+    this.refreshTimer = setTimeout(async () => {
+      const refreshed = await this.refreshAccessToken();
+      if (!refreshed && this.isConnected) {
+        this.disconnect();
+        this.addMessage("system", "Session utgången. Anslutning avbruten.");
+      }
+    }, 12 * 60 * 1000); // 12 minuter
   }
 
   connect() {
     const apiKey = this.apiKeyInput.value.trim();
 
     if (!apiKey) {
-      alert("Vänligen ange en API-nyckel");
+      alert("Ingen API-nyckel tillgänglig. Logga in först.");
+      this.showLoginSection();
       return;
     }
 
-    this.saveApiKey();
-
-    // Anpassa denna URL till din WebSocket-server
-    const serverUrl = "http://localhost:3005"; // Ändra till din servers URL
+    this.accessToken = apiKey;
+    const serverUrl = "http://localhost:3005";
 
     try {
-      // Socket.IO med JWT i header
       this.socket = io(serverUrl, {
         auth: {
-          token: apiKey,
+          token: this.accessToken,
         },
-        // Alternativt med extraHeaders om servern förväntar sig det
         extraHeaders: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${this.accessToken}`,
         },
       });
 
       this.setupSocketListeners();
       this.updateStatus("Ansluter...", "connecting");
+      this.scheduleTokenRefresh();
     } catch (error) {
       this.addMessage("system", `Anslutningsfel: ${error.message}`);
     }
@@ -81,6 +251,38 @@ class WebSocketClient {
     if (this.socket) {
       this.socket.disconnect();
     }
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+  }
+
+  async logout() {
+    try {
+      if (this.refreshToken) {
+        await fetch(`${this.loginApiUrl}/api/auth/logout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            refreshToken: this.refreshToken,
+          }),
+        });
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+
+    this.disconnect();
+    this.clearTokens();
+    this.updateStatus("Utloggad", "disconnected");
+    this.toggleControls(false);
+    this.showLoginSection();
+
+    // Rensa meddelanden
+    this.chatContainer.innerHTML = "";
+    this.addMessage("system", "Du har loggat ut.");
   }
 
   setupSocketListeners() {
@@ -106,23 +308,21 @@ class WebSocketClient {
         error.message.includes("Authentication") ||
         error.message.includes("Unauthorized")
       ) {
-        alert("Ogiltig API-nyckel. Kontrollera din JWT token.");
+        alert("Ogiltig API-nyckel. Session utgången.");
+        this.showLoginSection();
       }
     });
 
-    // Lyssna på meddelanden från servern
     this.socket.on("message", (data) => {
-      // Visa bara texten utan användarnamn (paste board stil)
-      this.addMessage("other", data.text);
+      this.addMessage("shared", data.text);
     });
 
-    // Alternativt event-namn som servern kan använda
     this.socket.on("chat-message", (data) => {
-      this.addMessage("other", data);
+      this.addMessage("shared", data);
     });
 
     this.socket.on("broadcast", (data) => {
-      this.addMessage("other", data);
+      this.addMessage("shared", data);
     });
   }
 
@@ -133,41 +333,27 @@ class WebSocketClient {
       return;
     }
 
-    // Skicka meddelande till servern (anpassat för server-format)
     this.socket.emit("message", { text: message });
-
-    // Ta bort lokal visning - låt servern broadcasta tillbaka till alla (inklusive avsändaren)
-    // this.addMessage("own", message); // Kommenterad bort
-
-    // Rensa input-fältet
     this.messageInput.value = "";
   }
 
   addMessage(type, content) {
     const messageDiv = document.createElement("div");
-    messageDiv.className = `message ${type}`;
-
     const timestamp = new Date().toLocaleTimeString("sv-SE");
 
     if (type === "system") {
+      messageDiv.className = "message system";
       messageDiv.innerHTML = `
         <div><strong>System:</strong> ${content}</div>
         <div class="timestamp">${timestamp}</div>
       `;
-      messageDiv.style.background = "#fff3cd";
-      messageDiv.style.color = "#856404";
-      messageDiv.style.margin = "0 auto";
-      messageDiv.style.textAlign = "center";
     } else {
-      // Paste board stil - alla meddelanden ser likadana ut
+      messageDiv.className = "message shared";
       messageDiv.innerHTML = `
-        <div>${content}</div>
+        <div class="message-content">${content}</div>
         <div class="timestamp">${timestamp}</div>
       `;
-      // Ta bort distinktionen mellan egna och andras meddelanden
-      messageDiv.className = "message shared";
 
-      // Lägg till copy-knapp för varje meddelande
       const copyBtn = document.createElement("button");
       copyBtn.textContent = "Kopiera";
       copyBtn.className = "copy-btn";
@@ -183,19 +369,9 @@ class WebSocketClient {
     navigator.clipboard
       .writeText(text)
       .then(() => {
-        // Visa kort bekräftelse
         const notification = document.createElement("div");
         notification.textContent = "Kopierat!";
-        notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #28a745;
-        color: white;
-        padding: 10px;
-        border-radius: 5px;
-        z-index: 1000;
-      `;
+        notification.className = "notification";
         document.body.appendChild(notification);
         setTimeout(() => notification.remove(), 1500);
       })
@@ -213,6 +389,7 @@ class WebSocketClient {
     if (connected) {
       this.connectBtn.classList.add("hidden");
       this.disconnectBtn.classList.remove("hidden");
+      this.logoutBtn.classList.remove("hidden");
       this.messageInput.disabled = false;
       this.sendBtn.disabled = false;
       this.apiKeyInput.disabled = true;
@@ -220,6 +397,7 @@ class WebSocketClient {
     } else {
       this.connectBtn.classList.remove("hidden");
       this.disconnectBtn.classList.add("hidden");
+      this.logoutBtn.classList.add("hidden");
       this.messageInput.disabled = true;
       this.sendBtn.disabled = true;
       this.apiKeyInput.disabled = false;
