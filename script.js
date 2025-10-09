@@ -4,7 +4,7 @@ class WebSocketClient {
     this.isConnected = false;
     this.accessToken = localStorage.getItem("access_token") || "";
     this.refreshToken = localStorage.getItem("refresh_token") || "";
-    this.loginApiUrl = "https://login-usop.onrender.com"; // Din login API URL
+    this.loginApiUrl = "https://login-usop.onrender.com"; // Login API URL
     this.refreshTimer = null;
     this.initializeElements();
     this.bindEvents();
@@ -227,7 +227,7 @@ class WebSocketClient {
     }
 
     this.accessToken = apiKey;
-    const serverUrl = "https://project-2-part-1-tvhv.onrender.com/";
+    const serverUrl = "https://project-2-part-1-tvhv.onrender.com/"; // WebSocket server URL
 
     try {
       this.socket = io(serverUrl, {
