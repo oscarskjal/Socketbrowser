@@ -22,7 +22,6 @@ class WebSocketClient {
     // Auth-section elements
     this.apiKeyInput = document.getElementById("apiKeyInput");
     this.connectBtn = document.getElementById("connectBtn");
-    this.disconnectBtn = document.getElementById("disconnectBtn");
     this.logoutBtn = document.getElementById("logoutBtn");
 
     // App elements
@@ -43,7 +42,6 @@ class WebSocketClient {
 
     // Auth events
     this.connectBtn.addEventListener("click", () => this.connect());
-    this.disconnectBtn.addEventListener("click", () => this.disconnect());
     this.logoutBtn.addEventListener("click", () => this.logout());
 
     // Message events
@@ -388,7 +386,6 @@ class WebSocketClient {
   toggleControls(connected) {
     if (connected) {
       this.connectBtn.classList.add("hidden");
-      this.disconnectBtn.classList.remove("hidden");
       this.logoutBtn.classList.remove("hidden");
       this.messageInput.disabled = false;
       this.sendBtn.disabled = false;
@@ -396,7 +393,6 @@ class WebSocketClient {
       this.messageInput.focus();
     } else {
       this.connectBtn.classList.remove("hidden");
-      this.disconnectBtn.classList.add("hidden");
       this.logoutBtn.classList.add("hidden");
       this.messageInput.disabled = true;
       this.sendBtn.disabled = true;
